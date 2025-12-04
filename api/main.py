@@ -37,26 +37,26 @@ async def lifespan(app: FastAPI):
     Loads model on startup.
     """
     global predictor
-    print("🚀 Starting up Customer Churn Prediction API...")
+    print("Starting up Customer Churn Prediction API...")
     
     try:
         predictor = ChurnPredictor()
-        print("✅ Model loaded successfully!")
+        print("Model loaded successfully!")
     except FileNotFoundError as e:
-        print(f"⚠️  Warning: {e}")
+        print(f"Warning: {e}")
         print("   API will start but predictions won't work until model is trained.")
         predictor = None
     
     yield
     
-    print("👋 Shutting down API...")
+    print("Shutting down API...")
 
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Customer Churn Prediction API",
     description="""
-    ## 🎯 MLOps Series - Part 1
+    ## MLOps Series - Part 1
     
     End-to-end ML pipeline for predicting customer churn.
     
@@ -67,11 +67,9 @@ app = FastAPI(
     - **Health Check**: Verify API and model status
     
     ### Built with:
-    - 🐍 Python + FastAPI
-    - 🤖 Scikit-learn (RandomForest)
-    - 📊 Telco Customer Churn Dataset
-    
-    Part of the MLOps LinkedIn Series.
+    - Python + FastAPI
+    - Scikit-learn (RandomForest)
+    - Telco Customer Churn Dataset
     """,
     version="1.0.0",
     lifespan=lifespan
@@ -91,7 +89,7 @@ app.add_middleware(
 async def root():
     """Welcome endpoint."""
     return {
-        "message": "🎯 Customer Churn Prediction API",
+        "message": "Customer Churn Prediction API",
         "version": "1.0.0",
         "docs": "/docs",
         "health": "/health"

@@ -130,7 +130,7 @@ class ChurnPreprocessor:
             'categorical_columns': self.categorical_columns,
             'numerical_columns': self.numerical_columns
         }, path)
-        print(f"✅ Preprocessor saved to {path}")
+        print(f"Preprocessor saved to {path}")
     
     def load(self, path: str):
         """Load preprocessor from disk."""
@@ -140,7 +140,7 @@ class ChurnPreprocessor:
         self.feature_columns = data['feature_columns']
         self.categorical_columns = data['categorical_columns']
         self.numerical_columns = data['numerical_columns']
-        print(f"✅ Preprocessor loaded from {path}")
+        print(f"Preprocessor loaded from {path}")
         return self
 
 

@@ -37,15 +37,15 @@ METRICS_PATH = os.path.join(MODEL_DIR, "metrics.json")
 def load_data(path: str) -> pd.DataFrame:
     """Load the dataset from CSV."""
     if not os.path.exists(path):
-        print(f"❌ Data file not found at {path}")
-        print("\n📥 Please download the Telco Customer Churn dataset:")
+        print(f"Data file not found at {path}")
+        print("\nPlease download the Telco Customer Churn dataset:")
         print("   1. Go to: https://www.kaggle.com/datasets/blastchar/telco-customer-churn")
         print("   2. Download 'WA_Fn-UseC_-Telco-Customer-Churn.csv'")
         print(f"   3. Place it in: {os.path.dirname(path)}")
         raise FileNotFoundError(f"Dataset not found at {path}")
     
     df = pd.read_csv(path)
-    print(f"✅ Loaded {len(df)} rows from dataset")
+    print(f"Loaded {len(df)} rows from dataset")
     return df
 
 
@@ -68,9 +68,9 @@ def train_model(X_train: np.ndarray, y_train: np.ndarray) -> RandomForestClassif
         n_jobs=-1
     )
     
-    print("🔄 Training model...")
+    print("Training model...")
     model.fit(X_train, y_train)
-    print("✅ Model training complete!")
+    print("Model training complete!")
     
     return model
 
@@ -97,17 +97,17 @@ def evaluate_model(
         "trained_at": datetime.now().isoformat()
     }
     
-    print("\n📊 Model Evaluation:")
+    print("\nModel Evaluation:")
     print(f"   Accuracy:  {metrics['accuracy']:.2%}")
     print(f"   Precision: {metrics['precision']:.2%}")
     print(f"   Recall:    {metrics['recall']:.2%}")
     print(f"   F1 Score:  {metrics['f1_score']:.2%}")
     
-    print("\n📋 Classification Report:")
+    print("\nClassification Report:")
     print(classification_report(y_test, y_pred, target_names=['No Churn', 'Churn']))
     
     # Top feature importances
-    print("\n🔑 Top 10 Important Features:")
+    print("\nTop 10 Important Features:")
     importances = pd.DataFrame({
         'feature': feature_names,
         'importance': model.feature_importances_
@@ -131,7 +131,7 @@ def save_artifacts(
     
     # Save model
     joblib.dump(model, MODEL_PATH)
-    print(f"\n✅ Model saved to {MODEL_PATH}")
+    print(f"\nModel saved to {MODEL_PATH}")
     
     # Save preprocessor
     preprocessor.save(PREPROCESSOR_PATH)
@@ -139,13 +139,13 @@ def save_artifacts(
     # Save metrics
     with open(METRICS_PATH, 'w') as f:
         json.dump(metrics, f, indent=2)
-    print(f"✅ Metrics saved to {METRICS_PATH}")
+    print(f"Metrics saved to {METRICS_PATH}")
 
 
 def main():
     """Main training pipeline."""
     print("=" * 60)
-    print("🚀 Customer Churn Prediction - Training Pipeline")
+    print("Customer Churn Prediction - Training Pipeline")
     print("=" * 60)
     
     # Load data
@@ -155,10 +155,10 @@ def main():
     preprocessor = ChurnPreprocessor()
     
     # Preprocess data
-    print("\n🔄 Preprocessing data...")
+    print("\nPreprocessing data...")
     X, y = preprocessor.fit_transform(df)
-    print(f"✅ Features shape: {X.shape}")
-    print(f"✅ Churn rate: {y.mean():.2%}")
+    print(f"Features shape: {X.shape}")
+    print(f"Churn rate: {y.mean():.2%}")
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
@@ -167,17 +167,17 @@ def main():
         random_state=42,
         stratify=y  # Maintain class distribution
     )
-    print(f"\n📊 Train set: {len(X_train)} samples")
-    print(f"📊 Test set:  {len(X_test)} samples")
+    print(f"\nTrain set: {len(X_train)} samples")
+    print(f"Test set:  {len(X_test)} samples")
     
     # Train model
     model = train_model(X_train, y_train)
     
     # Cross-validation
-    print("\n🔄 Running 5-fold cross-validation...")
+    print("\nRunning 5-fold cross-validation...")
     cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='f1')
-    print(f"✅ CV F1 Scores: {cv_scores.round(4)}")
-    print(f"✅ CV F1 Mean: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+    print(f"CV F1 Scores: {cv_scores.round(4)}")
+    print(f"CV F1 Mean: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
     
     # Evaluate
     metrics = evaluate_model(model, X_test, y_test, preprocessor.feature_columns)
@@ -188,13 +188,13 @@ def main():
     save_artifacts(model, preprocessor, metrics)
     
     print("\n" + "=" * 60)
-    print("✅ Training Pipeline Complete!")
+    print("Training Pipeline Complete!")
     print("=" * 60)
-    print(f"\n📁 Artifacts saved in: {MODEL_DIR}")
+    print(f"\nArtifacts saved in: {MODEL_DIR}")
     print("   - model.pkl")
     print("   - preprocessor.pkl") 
     print("   - metrics.json")
-    print("\n🚀 Next: Run the API with 'python api/main.py'")
+    print("\nNext: Run the API with 'python api/main.py'")
 
 
 if __name__ == "__main__":

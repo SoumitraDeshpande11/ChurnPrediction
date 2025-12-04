@@ -46,7 +46,7 @@ class ChurnPredictor:
         self.preprocessor = ChurnPreprocessor()
         self.preprocessor.load(preprocessor_path)
         
-        print(f"✅ Model and preprocessor loaded from {self.model_dir}")
+        print(f"Model and preprocessor loaded from {self.model_dir}")
     
     def predict(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
         """
