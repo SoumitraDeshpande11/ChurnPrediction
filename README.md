@@ -1,33 +1,53 @@
-# MLOps Series - Part 1: End-to-End ML Pipeline
+# MLOps Series: End-to-End ML Pipeline
 
 > Customer Churn Prediction System - From Notebook to Production
 
 [![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104-green.svg)](https://fastapi.tiangolo.com)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-green.svg)](https://github.com/features/actions)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## What is This?
 
-This is **Part 1** of my MLOps series where I build production-grade ML systems step by step.
+This is my MLOps series where I build production-grade ML systems step by step.
 
-**Part 1**: Deploy an end-to-end ML pipeline (You are here)  
-**Part 2**: Add auto-retraining + CI/CD  
+**Part 1**: Deploy an end-to-end ML pipeline  
+**Part 2**: Add auto-retraining + CI/CD (Current)  
 **Part 3**: Build agentic monitoring system
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Raw Data  │────▶│  Training   │────▶│   Model     │
-│   (CSV)     │     │  Pipeline   │     │   (.pkl)    │
-└─────────────┘     └─────────────┘     └──────┬──────┘
-                                               │
-                                               ▼
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Client    │◀───▶│  FastAPI    │◀───▶│  Predictor  │
-│  (Request)  │     │  Server     │     │   Module    │
-└─────────────┘     └─────────────┘     └─────────────┘
+                    ┌──────────────────────────────────────────┐
+                    │           GitHub Actions CI/CD           │
+                    │  ┌─────────┐ ┌─────────┐ ┌─────────────┐ │
+                    │  │  Test   │→│  Build  │→│   Deploy    │ │
+                    │  └─────────┘ └─────────┘ └─────────────┘ │
+                    └──────────────────┬───────────────────────┘
+                                       │
+    ┌──────────────────────────────────┼──────────────────────────────────┐
+    │                                  ▼                                  │
+    │  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐           │
+    │  │   Raw Data  │────▶│  Training   │────▶│   Model     │           │
+    │  │   (CSV)     │     │  Pipeline   │     │   (v1, v2)  │           │
+    │  └─────────────┘     └─────────────┘     └──────┬──────┘           │
+    │         │                   ▲                   │                   │
+    │         │                   │                   ▼                   │
+    │         │            ┌──────┴──────┐     ┌─────────────┐           │
+    │         └───────────▶│  Retrain    │     │  Predictor  │           │
+    │         (new data)   │  Pipeline   │     │   Module    │           │
+    │                      └─────────────┘     └──────┬──────┘           │
+    │                                                 │                   │
+    └─────────────────────────────────────────────────┼───────────────────┘
+                                                      │
+                    ┌─────────────────────────────────┼─────────────────┐
+                    │                                 ▼                 │
+                    │  ┌─────────────┐     ┌─────────────────────────┐  │
+                    │  │   Client    │◀───▶│   FastAPI + Render      │  │
+                    │  │  (Request)  │     │   (Production API)      │  │
+                    │  └─────────────┘     └─────────────────────────┘  │
+                    └───────────────────────────────────────────────────┘
 ```
 
 ## Quick Start
@@ -138,53 +158,93 @@ curl -X POST "http://localhost:8000/predict" \
 ## Project Structure
 
 ```
-mlops-series/
+ChurnPrediction/
+├── .github/
+│   └── workflows/
+│       ├── ci-cd.yml         # CI/CD pipeline
+│       └── retrain.yml       # Scheduled retraining
 ├── src/
 │   ├── __init__.py
-│   ├── train.py          # Training pipeline
-│   ├── predict.py        # Prediction module
-│   └── preprocess.py     # Data preprocessing
+│   ├── train.py              # Training pipeline
+│   ├── predict.py            # Prediction module
+│   └── preprocess.py         # Data preprocessing
 ├── api/
 │   ├── __init__.py
-│   ├── main.py           # FastAPI application
-│   └── schemas.py        # Pydantic models
+│   ├── main.py               # FastAPI application
+│   └── schemas.py            # Pydantic models
+├── scripts/
+│   ├── download_data.py      # Dataset downloader
+│   └── retrain.py            # Auto-retraining script
 ├── models/
-│   └── v1/
-│       ├── model.pkl     # Trained model
+│   └── v1/                   # Versioned models
+│       ├── model.pkl
 │       ├── preprocessor.pkl
 │       └── metrics.json
 ├── data/
-│   ├── raw/              # Raw datasets
-│   └── processed/        # Processed data
+│   ├── raw/                  # Raw datasets
+│   └── processed/            # Processed data + hashes
 ├── tests/
-│   └── test_model.py     # Unit tests
+│   └── test_model.py         # Comprehensive tests
 ├── Dockerfile
 ├── requirements.txt
 ├── .gitignore
 └── README.md
 ```
 
+## CI/CD Pipeline
+
+On every push to `main`:
+
+1. **Test** - Run pytest on all tests
+2. **Build** - Build Docker image
+3. **Deploy** - Trigger Render deployment
+
+```bash
+# Trigger manually
+gh workflow run ci-cd.yml
+```
+
+## Auto-Retraining
+
+The retraining pipeline:
+
+1. Detects new data (via file hash)
+2. Validates data quality
+3. Trains new model
+4. Compares metrics with current model
+5. Promotes only if better
+
+```bash
+# Manual retrain
+python scripts/retrain.py
+
+# Force retrain (even without new data)
+python scripts/retrain.py --force
+```
+
+Scheduled to run weekly via GitHub Actions.
+
 ## Model Performance
 
 | Metric | Score |
 |--------|-------|
-| Accuracy | ~80% |
-| Precision | ~65% |
-| Recall | ~55% |
-| F1 Score | ~59% |
+| Accuracy | ~77% |
+| Precision | ~56% |
+| Recall | ~71% |
+| F1 Score | ~62% |
 
-*Actual metrics will be saved in `models/v1/metrics.json` after training.*
+*Metrics saved in `models/v1/metrics.json` after training.*
 
 ## Coming Next
 
-- **Part 2**: Auto-retraining pipeline with GitHub Actions
-- **Part 3**: AI agent for pipeline monitoring
+- **Part 3**: AI agent for pipeline monitoring with intelligent alerting
 
 ## Tech Stack
 
 - **ML**: Scikit-learn, Pandas, NumPy
 - **API**: FastAPI, Uvicorn, Pydantic
-- **Deployment**: Docker, Render/Railway
+- **CI/CD**: GitHub Actions
+- **Deployment**: Docker, Render
 - **Testing**: Pytest
 
 ## License

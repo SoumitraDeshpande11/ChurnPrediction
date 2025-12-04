@@ -1,0 +1,84 @@
+name: Scheduled Model Retraining
+
+on:
+  schedule:
+    # Run every Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      force_retrain:
+        description: 'Force retraining even without new data'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  retrain:
+    name: Retrain Model
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install kagglehub
+
+      - name: Download latest data
+        run: |
+          python scripts/download_data.py
+        continue-on-error: true
+
+      - name: Run retraining pipeline
+        run: |
+          if [ "${{ github.event.inputs.force_retrain }}" == "true" ]; then
+            python scripts/retrain.py --force
+          else
+            python scripts/retrain.py
+          fi
+
+      - name: Run tests on new model
+        run: |
+          pip install pytest
+          pytest tests/ -v --tb=short
+
+      - name: Commit and push if model updated
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Check if there are changes
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git add models/
+            git add data/processed/
+            git commit -m "Auto-retrain: Update model $(date +'%Y-%m-%d')"
+            git push
+          fi
+
+      - name: Create summary
+        run: |
+          echo "## Retraining Summary" >> $GITHUB_STEP_SUMMARY
+          
+          # Check if new model was created
+          if [ -f "models/v2/metrics.json" ]; then
+            echo "New model version created!" >> $GITHUB_STEP_SUMMARY
+            cat models/v2/metrics.json >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No new model version (metrics unchanged or worse)" >> $GITHUB_STEP_SUMMARY
+          fi
