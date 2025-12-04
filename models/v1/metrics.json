@@ -1,0 +1,53 @@
+{
+  "accuracy": 0.7722,
+  "precision": 0.5553,
+  "recall": 0.7112,
+  "f1_score": 0.6237,
+  "test_samples": 1409,
+  "churn_rate": 0.2654,
+  "trained_at": "2025-12-04T22:12:57.730635",
+  "top_features": [
+    {
+      "feature": "Contract",
+      "importance": 0.18463115070433214
+    },
+    {
+      "feature": "tenure",
+      "importance": 0.14308408811826956
+    },
+    {
+      "feature": "TotalCharges",
+      "importance": 0.12773206479054947
+    },
+    {
+      "feature": "MonthlyCharges",
+      "importance": 0.12089524381683761
+    },
+    {
+      "feature": "OnlineSecurity",
+      "importance": 0.08789311217028542
+    },
+    {
+      "feature": "TechSupport",
+      "importance": 0.07700088364133421
+    },
+    {
+      "feature": "InternetService",
+      "importance": 0.04630448798793406
+    },
+    {
+      "feature": "PaymentMethod",
+      "importance": 0.042925685141233384
+    },
+    {
+      "feature": "OnlineBackup",
+      "importance": 0.028178493376225935
+    },
+    {
+      "feature": "PaperlessBilling",
+      "importance": 0.021618218382096623
+    }
+  ],
+  "cv_f1_mean": 0.6268,
+  "cv_f1_std": 0.023
+}
