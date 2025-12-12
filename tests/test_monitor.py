@@ -46,7 +46,7 @@ class TestMLMonitorAgent:
         assert agent.alerts[0]["message"] == "Test message"
         assert agent.alerts[0]["severity"] == "high"
     
-    @patch('requests.get')
+    @patch('scripts.monitor.requests.get')
     def test_api_health_check_success(self, mock_get, agent):
         """Test successful API health check."""
         mock_response = Mock()
@@ -59,10 +59,11 @@ class TestMLMonitorAgent:
         assert "latency_ms" in result["details"]
         assert result["details"]["status_code"] == 200
     
-    @patch('requests.get')
+    @patch('scripts.monitor.requests.get')
     def test_api_health_check_failure(self, mock_get, agent):
         """Test failed API health check."""
-        mock_get.side_effect = Exception("Connection error")
+        import requests
+        mock_get.side_effect = requests.exceptions.RequestException("Connection error")
         
         result = agent.check_api_health()
         
@@ -113,7 +114,7 @@ class TestMLMonitorAgent:
         assert len(agent.alerts) > 0
         assert any(a["type"] == "PERFORMANCE_DROP" for a in agent.alerts)
     
-    @patch('requests.post')
+    @patch('scripts.monitor.requests.post')
     def test_prediction_patterns_check(self, mock_post, agent):
         """Test prediction pattern analysis."""
         mock_response = Mock()
