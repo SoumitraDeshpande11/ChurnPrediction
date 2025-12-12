@@ -16,3 +16,7 @@ httpx==0.25.2
 # Testing (for Part 2)
 pytest==7.4.3
 pytest-cov==4.1.0
+
+# Monitoring (for Part 3)
+requests==2.32.5
+scipy==1.13.1
