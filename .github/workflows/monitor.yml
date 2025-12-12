@@ -1,0 +1,121 @@
+name: Pipeline Monitoring
+
+on:
+  schedule:
+    # Run twice daily (8 AM and 8 PM UTC)
+    - cron: '0 8,20 * * *'
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      alert_threshold:
+        description: 'Alert sensitivity'
+        required: false
+        default: 'medium'
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  monitor:
+    name: Monitor ML Pipeline
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install requests scipy
+
+      - name: Run monitoring agent
+        id: monitor
+        run: |
+          THRESHOLD="${{ github.event.inputs.alert_threshold }}"
+          if [ -z "$THRESHOLD" ]; then
+            THRESHOLD="medium"
+          fi
+          
+          python scripts/monitor.py --alert-threshold $THRESHOLD
+        continue-on-error: true
+
+      - name: Upload monitoring report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: monitoring-report-${{ github.run_number }}
+          path: data/processed/monitor_log.json
+          retention-days: 30
+
+      - name: Create Issue on Critical Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const logPath = 'data/processed/monitor_log.json';
+            
+            let logContent = 'Monitoring check failed';
+            if (fs.existsSync(logPath)) {
+              const logs = JSON.parse(fs.readFileSync(logPath, 'utf8'));
+              const lastRun = logs.monitoring_runs[logs.monitoring_runs.length - 1];
+              
+              if (lastRun && lastRun.alerts && lastRun.alerts.length > 0) {
+                logContent = '## Pipeline Monitoring Alert\n\n';
+                logContent += `**Status**: ${lastRun.overall_status}\n`;
+                logContent += `**Alert Count**: ${lastRun.alert_count}\n\n`;
+                logContent += '### Issues Detected:\n';
+                
+                lastRun.alerts.forEach(alert => {
+                  logContent += `- **[${alert.severity.toUpperCase()}]** ${alert.message}\n`;
+                });
+                
+                if (lastRun.summary) {
+                  logContent += '\n### Summary:\n```\n' + lastRun.summary + '\n```';
+                }
+              }
+            }
+            
+            // Check if an open monitoring issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'monitoring-alert'
+            });
+            
+            if (issues.data.length === 0) {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Pipeline Monitoring Alert - ${new Date().toISOString().split('T')[0]}`,
+                body: logContent,
+                labels: ['monitoring-alert', 'automated']
+              });
+            } else {
+              // Update existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: `### New Alert - ${new Date().toISOString()}\n\n${logContent}`
+              });
+            }
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "✓ Monitoring completed successfully - all systems healthy"

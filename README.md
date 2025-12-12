@@ -13,8 +13,8 @@
 This is my MLOps series where I build production-grade ML systems step by step.
 
 **Part 1**: Deploy an end-to-end ML pipeline  
-**Part 2**: Add auto-retraining + CI/CD (Current)  
-**Part 3**: Build agentic monitoring system
+**Part 2**: Add auto-retraining + CI/CD  
+**Part 3**: Build agentic monitoring system (Current)
 
 ## Architecture
 
@@ -30,23 +30,34 @@ This is my MLOps series where I build production-grade ML systems step by step.
     │                                  ▼                                  │
     │  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐           │
     │  │   Raw Data  │────▶│  Training   │────▶│   Model     │           │
-    │  │   (CSV)     │     │  Pipeline   │     │   (v1, v2)  │           │
-    │  └─────────────┘     └─────────────┘     └──────┬──────┘           │
-    │         │                   ▲                   │                   │
-    │         │                   │                   ▼                   │
-    │         │            ┌──────┴──────┐     ┌─────────────┐           │
-    │         └───────────▶│  Retrain    │     │  Predictor  │           │
-    │         (new data)   │  Pipeline   │     │   Module    │           │
-    │                      └─────────────┘     └──────┬──────┘           │
-    │                                                 │                   │
-    └─────────────────────────────────────────────────┼───────────────────┘
-                                                      │
-                    ┌─────────────────────────────────┼─────────────────┐
-                    │                                 ▼                 │
-                    │  ┌─────────────┐     ┌─────────────────────────┐  │
-                    │  │   Client    │◀───▶│   FastAPI + Render      │  │
-                    │  │  (Request)  │     │   (Production API)      │  │
-                    │  └─────────────┘     └─────────────────────────┘  │
+    │  │   (CSV)     │     │  Pipeline   │     │   (v1, v2)  │◀┐         │
+    │  └─────────────┘     └─────────────┘     └──────┬──────┘ │         │
+    │         │                   ▲                   │        │         │
+    │         │                   │                   ▼        │         │
+    │         │            ┌──────┴──────┐     ┌─────────────┐ │         │
+    │         └───────────▶│  Retrain    │     │  Predictor  │ │         │
+    │         (new data)   │  Pipeline   │     │   Module    │ │         │
+    │                      └─────────────┘     └──────┬──────┘ │         │
+    │                             ▲                   │        │         │
+    │                             │                   │        │         │
+    │                      ┌──────┴──────┐            │        │         │
+    │                      │  Monitor    │────────────┘        │         │
+    │                      │   Agent     │ (drift/performance) │         │
+    │                      └──────┬──────┘                     │         │
+    │                             │ (triggers retrain)         │         │
+    └─────────────────────────────┼────────────────────────────┼─────────┘
+                                  │                            │
+                    ┌─────────────┼────────────────────────────┼─────────┐
+                    │             │                            ▼         │
+                    │  ┌──────────▼─────┐     ┌─────────────────────────┐│
+                    │  │   Alerts &     │     │   FastAPI + Render      ││
+                    │  │  Notifications │     │   (Production API)      ││
+                    │  └────────────────┘     └───────────▲─────────────┘│
+                    │                                     │              │
+                    │  ┌─────────────┐                    │              │
+                    │  │   Client    │────────────────────┘              │
+                    │  │  (Request)  │                                   │
+                    │  └─────────────┘                                   │
                     └───────────────────────────────────────────────────┘
 ```
 
@@ -162,7 +173,8 @@ ChurnPrediction/
 ├── .github/
 │   └── workflows/
 │       ├── ci-cd.yml         # CI/CD pipeline
-│       └── retrain.yml       # Scheduled retraining
+│       ├── retrain.yml       # Scheduled retraining
+│       └── monitor.yml       # Pipeline monitoring
 ├── src/
 │   ├── __init__.py
 │   ├── train.py              # Training pipeline
@@ -174,7 +186,8 @@ ChurnPrediction/
 │   └── schemas.py            # Pydantic models
 ├── scripts/
 │   ├── download_data.py      # Dataset downloader
-│   └── retrain.py            # Auto-retraining script
+│   ├── retrain.py            # Auto-retraining script
+│   └── monitor.py            # Monitoring agent
 ├── models/
 │   └── v1/                   # Versioned models
 │       ├── model.pkl
@@ -182,9 +195,10 @@ ChurnPrediction/
 │       └── metrics.json
 ├── data/
 │   ├── raw/                  # Raw datasets
-│   └── processed/            # Processed data + hashes
+│   └── processed/            # Processed data + monitoring logs
 ├── tests/
-│   └── test_model.py         # Comprehensive tests
+│   ├── test_model.py         # Model tests
+│   └── test_monitor.py       # Monitoring tests
 ├── Dockerfile
 ├── requirements.txt
 ├── .gitignore
@@ -224,6 +238,63 @@ python scripts/retrain.py --force
 
 Scheduled to run weekly via GitHub Actions.
 
+## Intelligent Monitoring
+
+**NEW in Part 3**: AI-powered monitoring agent that watches your pipeline 24/7.
+
+The monitoring agent checks:
+1. **API Health** - Response time and availability
+2. **Model Performance** - Accuracy and F1 score thresholds
+3. **Data Drift** - Statistical changes in features
+4. **Prediction Patterns** - Anomaly detection
+5. **System Resources** - File integrity and availability
+
+```bash
+# Run monitoring locally
+python scripts/monitor.py
+
+# High sensitivity (more alerts)
+python scripts/monitor.py --alert-threshold high
+
+# Low sensitivity (fewer alerts)
+python scripts/monitor.py --alert-threshold low
+```
+
+**Automated Actions:**
+- Runs twice daily (8 AM & 8 PM UTC) via GitHub Actions
+- Creates GitHub issues on critical failures
+- Generates intelligent summaries of pipeline health
+- Triggers retraining when drift detected
+
+**Sample Monitoring Output:**
+```
+============================================================
+ML PIPELINE MONITORING AGENT
+============================================================
+[1/5] Checking API Health...
+   ✓ API responding (latency: 234ms)
+[2/5] Checking Model Performance...
+   ✓ Model performing well (F1: 62%)
+[3/5] Checking Data Drift...
+   ⚠ Drift detected in 1 feature(s)
+[4/5] Analyzing Prediction Patterns...
+   ✓ Predictions working
+[5/5] Checking System Resources...
+   ✓ All model files present
+
+============================================================
+MONITORING SUMMARY
+============================================================
+⚠ System Status: DEGRADED
+  1 issue(s) detected:
+
+  🟡 MEDIUM (1):
+     - tenure drifted 12.3% from baseline
+
+  Recommendations:
+     → Consider retraining the model with recent data
+```
+
 ## Model Performance
 
 | Metric | Score |
@@ -235,15 +306,26 @@ Scheduled to run weekly via GitHub Actions.
 
 *Metrics saved in `models/v1/metrics.json` after training.*
 
-## Coming Next
+## What Makes This Different?
 
-- **Part 3**: AI agent for pipeline monitoring with intelligent alerting
+Most ML projects stop at deployment. This one goes further:
+
+✅ **Part 1** - End-to-end pipeline with production deployment  
+✅ **Part 2** - Automated CI/CD and intelligent retraining  
+✅ **Part 3** - Self-monitoring system with drift detection  
+
+This is a production-grade ML system that:
+- Tests itself continuously
+- Retrains itself automatically
+- Monitors itself intelligently
+- Alerts you when something breaks
 
 ## Tech Stack
 
 - **ML**: Scikit-learn, Pandas, NumPy
 - **API**: FastAPI, Uvicorn, Pydantic
 - **CI/CD**: GitHub Actions
+- **Monitoring**: Custom Python agent with scipy
 - **Deployment**: Docker, Render
 - **Testing**: Pytest
 
